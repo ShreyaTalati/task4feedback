@@ -1,4 +1,4 @@
-from typing import List, Dict, Tuple, Union, Optional, Callable, Self, Set
+from typing import List, Dict, Tuple, Union, Optional, Callable, Set
 from dataclasses import dataclass, field, InitVar
 from enum import IntEnum
 
@@ -34,7 +34,7 @@ class Time:
     unit: str = "us"
     display_unit: str = "us"
 
-    def scale_between(self, target_unit: str) -> int | Fraction | Decimal:
+    def scale_between(, target_unit: str) -> int | Fraction | Decimal:
         if target_unit not in time_units:
             raise ValueError(f"Invalid time unit: {target_unit}")
         if self.unit not in time_units:
@@ -169,10 +169,10 @@ class DataID:
     def __hash__(self) -> int:
         return hash(self.idx)
 
-    def __eq__(self, other: Self) -> bool:
+    def __eq__(self, other) -> bool:
         return self.idx == other.idx
 
-    def __lt__(self, other: Self) -> bool:
+    def __lt__(self, other) -> bool:
         return self.idx < other.idx
 
 
