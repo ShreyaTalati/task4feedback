@@ -18,27 +18,51 @@ from enum import Enum
 import time
 import itertools
 
-from parla import Parla, spawn, TaskSpace, parray
-from parla import sleep_gil
-from parla import sleep_nogil
-from parla.common.array import clone_here
-from parla.common.globals import (
-    get_current_devices,
-    get_current_stream,
-    cupy,
-    CUPY_ENABLED,
-    get_current_context,
-)
-from parla.common.parray.from_data import asarray
-from parla.cython.device_manager import cpu, gpu
-from parla.cython.variants import specialize
-from parla import gpu_sleep_nogil
-from parla.cython.core import gpu_bsleep_nogil, gpu_bsleep_gil
+use_old_parla = os.environ.get("OLD_PARLA") == "1"
+use_gpu = os.environ.get("USE_GPU") == "1"
+
+if use_old_parla:
+    import time
+    import argparse
+
+    from parla import Parla
+
+    from sleep.core import bsleep as sleep_nogil
+    from sleep.core import sleep_with_gil as sleep_gil
+    from parla.tasks import TaskSpace, spawn
+    from parla.cpu import cpu
+    from parla.function_decorators import specialized as specialize
+    from parla.parray import asarray, asarray_batch
+    from parla.parray.core import PArray
+
+    if use_gpu:
+        from parla.cuda import gpu
+    else:
+        gpu = cpu
+
+else:
+    from parla import Parla, spawn, TaskSpace, parray
+    from parla import sleep_gil
+    from parla import sleep_nogil
+    from parla.common.array import clone_here
+    from parla.common.globals import (
+        get_current_devices,
+        get_current_stream,
+        cupy,
+        CUPY_ENABLED,
+        get_current_context,
+    )
+    from parla.common.parray.from_data import asarray
+    from parla.cython.device_manager import cpu, gpu
+    from parla.cython.variants import specialize
+    from parla import gpu_sleep_nogil
+    from parla.cython.core import gpu_bsleep_nogil, gpu_bsleep_gil
+
+    PArray = parray.core.PArray
+
 import numpy as np
 
 from fractions import Fraction
-
-PArray = parray.core.PArray
 
 
 def make_parrays(data_list):
@@ -108,20 +132,23 @@ def free_sleep(duration: float, config: RunConfig = None):
     sleep_nogil(duration)
 
 
-@free_sleep.variant(architecture=gpu)
-def free_sleep_gpu(duration: float, config: RunConfig = None):
-    """
-    Assumes all GPUs on the system are the same.
-    """
-    device = get_current_devices()[0]
-    stream = get_current_stream()
+if not use_old_parla:
 
-    cycles_per_second = _GPUInfo.get_cycles()
-    ticks = int(cycles_per_second * duration)
-    gpu_bsleep_nogil(device.gpu_id, ticks, stream)
+    @free_sleep.variant(architecture=gpu)
+    def free_sleep_gpu(duration: float, config: RunConfig = None):
+        """
+        Assumes all GPUs on the system are the same.
+        """
 
-    if config.inner_sync:
-        stream.synchronize()
+        device = get_current_devices()[0]
+        stream = get_current_stream()
+
+        cycles_per_second = _GPUInfo.get_cycles()
+        ticks = int(cycles_per_second * duration)
+        gpu_bsleep_nogil(device.gpu_id, ticks, stream)
+
+        if config.inner_sync:
+            stream.synchronize()
 
 
 @specialize
@@ -129,20 +156,23 @@ def lock_sleep(duration: float, config: RunConfig = None):
     sleep_gil(duration)
 
 
-@lock_sleep.variant(architecture=gpu)
-def lock_sleep_gpu(duration: float, config: RunConfig = None):
-    """
-    Assumes all GPUs on the system are the same.
-    """
-    device = get_current_devices()[0]
-    stream = get_current_stream()
+if not use_old_parla:
 
-    cycles_per_second = _GPUInfo.get_cycles()
-    ticks = int(cycles_per_second * duration)
-    gpu_bsleep_gil(device.id, ticks, stream)
+    @lock_sleep.variant(architecture=gpu)
+    def lock_sleep_gpu(duration: float, config: RunConfig = None):
+        """
+        Assumes all GPUs on the system are the same.
+        """
+        if not use_old_parla:
+            device = get_current_devices()[0]
+            stream = get_current_stream()
 
-    if config.inner_sync:
-        stream.synchronize()
+            cycles_per_second = _GPUInfo.get_cycles()
+            ticks = int(cycles_per_second * duration)
+            gpu_bsleep_gil(device.id, ticks, stream)
+
+            if config.inner_sync:
+                stream.synchronize()
 
 
 def write_data_tag(block: "np.ndarray | cupy.ndarray", id: DataID):
@@ -299,9 +329,13 @@ def synthetic_kernel(runtime_info: TaskPlacementInfo, config: RunConfig):
     if config.verbose:
         task_internal_start_t = time.perf_counter()
 
-    context = get_current_context()
-    devices = convert_context_to_devices(context)
-    details = runtime_info[devices]
+    if not use_old_parla:
+        context = get_current_context()
+        devices = convert_context_to_devices(context)
+        details = runtime_info[devices]
+    else:
+        devices = [cpu(0)]
+        details = runtime_info[Device(Architecture.CPU, 0)]
 
     if len(devices) == 0:
         raise ValueError("No devices provided to busy sleep kernel.")
@@ -350,27 +384,29 @@ def waste_time(info_list: List[TaskRuntimeInfo], config: RunConfig):
             lock_sleep(gil_time)
 
 
-@waste_time.variant(architecture=gpu)
-def waste_time_gpu(info_list: List[TaskRuntimeInfo], config: RunConfig):
-    context = get_current_context()
-    if len(info_list) < len(context.devices):
-        raise ValueError(
-            "Not enough TaskRuntimeInfo provided to busy sleep kernel. Must be equal to number of devices."
-        )
+if not use_old_parla:
 
-    for idx, device in enumerate(context.loop()):
-        print("Device: ", device)
-        info = info_list[idx]
-        (free_time, gil_time), gil_accesses = get_kernel_info(info, config=config)
-        if gil_accesses == 0:
-            free_sleep(free_time, config=config)
-        else:
-            for i in range(gil_accesses):
+    @waste_time.variant(architecture=gpu)
+    def waste_time_gpu(info_list: List[TaskRuntimeInfo], config: RunConfig):
+        context = get_current_context()
+        if len(info_list) < len(context.devices):
+            raise ValueError(
+                "Not enough TaskRuntimeInfo provided to busy sleep kernel. Must be equal to number of devices."
+            )
+
+        for idx, device in enumerate(context.loop()):
+            print("Device: ", device)
+            info = info_list[idx]
+            (free_time, gil_time), gil_accesses = get_kernel_info(info, config=config)
+            if gil_accesses == 0:
                 free_sleep(free_time, config=config)
-                lock_sleep(gil_time, config=config)
+            else:
+                for i in range(gil_accesses):
+                    free_sleep(free_time, config=config)
+                    lock_sleep(gil_time, config=config)
 
-    if config.outer_sync:
-        context.synchronize()
+        if config.outer_sync:
+            context.synchronize()
 
 
 def build_parla_device(mapping: Device, runtime_info: TaskRuntimeInfo):
@@ -386,15 +422,18 @@ def build_parla_device(mapping: Device, runtime_info: TaskRuntimeInfo):
     device_memory = runtime_info.memory
     device_fraction = runtime_info.device_fraction
 
-    # Instatiate the Parla device object (may require scheduler to be active)
-    if mapping.device_id != -1:
-        device = arch(mapping.device_id)[
-            {"memory": device_memory, "vcus": device_fraction}
-        ]
-    else:
-        device = arch[{"memory": device_memory, "vcus": device_fraction}]
+    if not use_old_parla:
+        # Instatiate the Parla device object (may require scheduler to be active)
+        if mapping.device_id != -1:
+            device = arch(mapping.device_id)[
+                {"memory": device_memory, "vcus": device_fraction}
+            ]
+        else:
+            device = arch[{"memory": device_memory, "vcus": device_fraction}]
 
-    return device
+        return device
+    else:
+        return arch(mapping.device_id), device_memory, device_fraction
 
 
 def build_parla_device_tuple(
@@ -464,7 +503,10 @@ def parse_task_info(
 
     # Valid Placement Set
     placement_info = task.runtime
-    placement_list = build_parla_placement(task.mapping, placement_info)
+    if not use_old_parla:
+        placement_list = build_parla_placement(task.mapping, placement_info)
+    else:
+        placement_list = placement_info[Device(Architecture.CPU, 0)][0].device_fraction
 
     # Data information
     data_information = task.data_dependencies
@@ -516,21 +558,42 @@ def create_task(task_name, task_info, data_info, runtime_info, config: RunConfig
                 flush=True,
             )
 
-        @spawn(
-            T[task_idx],
-            dependencies=dependencies,
-            placement=placement_set,
-            input=IN,
-            inout=INOUT,
-        )
-        async def task_func():
-            if config.verbose:
-                print(f"+{task_name} Running", flush=True)
+        if not use_old_parla:
 
-            elapsed = synthetic_kernel(runtime_info, config=config)
+            @spawn(
+                T[task_idx],
+                dependencies=dependencies,
+                placement=placement_set,
+                input=IN,
+                inout=INOUT,
+            )
+            async def task_func():
+                if config.verbose:
+                    print(f"+{task_name} Running", flush=True)
 
-            if config.verbose:
-                print(f"-{task_name} Finished: {elapsed} seconds", flush=True)
+                elapsed = synthetic_kernel(runtime_info, config=config)
+
+                if config.verbose:
+                    print(f"-{task_name} Finished: {elapsed} seconds", flush=True)
+
+        else:
+
+            @spawn(
+                T[task_idx],
+                dependencies=dependencies,
+                placement=cpu,
+                input=IN,
+                inout=INOUT,
+                vcus=placement_set,
+            )
+            async def task_func():
+                if config.verbose:
+                    print(f"+{task_name} Running", flush=True)
+
+                elapsed = synthetic_kernel(runtime_info, config=config)
+
+                if config.verbose:
+                    print(f"-{task_name} Finished: {elapsed} seconds", flush=True)
 
     except Exception as e:
         print(f"Failed creating Task {task_name}: {e}", flush=True)
@@ -659,7 +722,7 @@ def run(
     for outer in range(run_config.outer_iterations):
         outer_start_t = time.perf_counter()
 
-        with Parla(logfile=run_config.logfile):
+        with Parla():
             internal_start_t = time.perf_counter()
             execute_graph(tasks, data_config, run_config, timing)
             internal_end_t = time.perf_counter()
