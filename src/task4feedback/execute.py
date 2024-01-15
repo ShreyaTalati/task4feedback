@@ -27,8 +27,11 @@ if use_old_parla:
 
     from parla import Parla
 
-    from sleep.core import bsleep as sleep_nogil
-    from sleep.core import sleep_with_gil as sleep_gil
+    #from sleep.core import bsleep as sleep_nogil
+    #from sleep.core import sleep_with_gil as sleep_gil
+    from doozer.cpu import sleep as sleep_nogil
+    from doozer.cpu import sleep_with_gil as sleep_gil
+
     from parla.tasks import TaskSpace, spawn
     from parla.cpu import cpu
     from parla.function_decorators import specialized as specialize
@@ -132,48 +135,9 @@ def free_sleep(duration: float, config: RunConfig = None):
     sleep_nogil(duration)
 
 
-if not use_old_parla:
-
-    @free_sleep.variant(architecture=gpu)
-    def free_sleep_gpu(duration: float, config: RunConfig = None):
-        """
-        Assumes all GPUs on the system are the same.
-        """
-
-        device = get_current_devices()[0]
-        stream = get_current_stream()
-
-        cycles_per_second = _GPUInfo.get_cycles()
-        ticks = int(cycles_per_second * duration)
-        gpu_bsleep_nogil(device.gpu_id, ticks, stream)
-
-        if config.inner_sync:
-            stream.synchronize()
-
-
 @specialize
 def lock_sleep(duration: float, config: RunConfig = None):
     sleep_gil(duration)
-
-
-if not use_old_parla:
-
-    @lock_sleep.variant(architecture=gpu)
-    def lock_sleep_gpu(duration: float, config: RunConfig = None):
-        """
-        Assumes all GPUs on the system are the same.
-        """
-        if not use_old_parla:
-            device = get_current_devices()[0]
-            stream = get_current_stream()
-
-            cycles_per_second = _GPUInfo.get_cycles()
-            ticks = int(cycles_per_second * duration)
-            gpu_bsleep_gil(device.id, ticks, stream)
-
-            if config.inner_sync:
-                stream.synchronize()
-
 
 def write_data_tag(block: "np.ndarray | cupy.ndarray", id: DataID):
     n, d = block.shape
@@ -329,13 +293,8 @@ def synthetic_kernel(runtime_info: TaskPlacementInfo, config: RunConfig):
     if config.verbose:
         task_internal_start_t = time.perf_counter()
 
-    if not use_old_parla:
-        context = get_current_context()
-        devices = convert_context_to_devices(context)
-        details = runtime_info[devices]
-    else:
-        devices = [cpu(0)]
-        details = runtime_info[Device(Architecture.CPU, 0)]
+    devices = [cpu(0)]
+    details = runtime_info[Device(Architecture.CPU, 0)]
 
     if len(devices) == 0:
         raise ValueError("No devices provided to busy sleep kernel.")
@@ -382,31 +341,6 @@ def waste_time(info_list: List[TaskRuntimeInfo], config: RunConfig):
         for i in range(gil_accesses):
             free_sleep(free_time)
             lock_sleep(gil_time)
-
-
-if not use_old_parla:
-
-    @waste_time.variant(architecture=gpu)
-    def waste_time_gpu(info_list: List[TaskRuntimeInfo], config: RunConfig):
-        context = get_current_context()
-        if len(info_list) < len(context.devices):
-            raise ValueError(
-                "Not enough TaskRuntimeInfo provided to busy sleep kernel. Must be equal to number of devices."
-            )
-
-        for idx, device in enumerate(context.loop()):
-            print("Device: ", device)
-            info = info_list[idx]
-            (free_time, gil_time), gil_accesses = get_kernel_info(info, config=config)
-            if gil_accesses == 0:
-                free_sleep(free_time, config=config)
-            else:
-                for i in range(gil_accesses):
-                    free_sleep(free_time, config=config)
-                    lock_sleep(gil_time, config=config)
-
-        if config.outer_sync:
-            context.synchronize()
 
 
 def build_parla_device(mapping: Device, runtime_info: TaskRuntimeInfo):
@@ -503,10 +437,7 @@ def parse_task_info(
 
     # Valid Placement Set
     placement_info = task.runtime
-    if not use_old_parla:
-        placement_list = build_parla_placement(task.mapping, placement_info)
-    else:
-        placement_list = placement_info[Device(Architecture.CPU, 0)][0].device_fraction
+    placement_list = placement_info[Device(Architecture.CPU, 0)][0].device_fraction
 
     # Data information
     data_information = task.data_dependencies
@@ -558,42 +489,24 @@ def create_task(task_name, task_info, data_info, runtime_info, config: RunConfig
                 flush=True,
             )
 
-        if not use_old_parla:
 
-            @spawn(
-                T[task_idx],
-                dependencies=dependencies,
-                placement=placement_set,
-                input=IN,
-                inout=INOUT,
-            )
-            async def task_func():
-                if config.verbose:
-                    print(f"+{task_name} Running", flush=True)
+        @spawn(
+            T[task_idx],
+            dependencies=dependencies,
+            placement=cpu,
+            input=IN,
+            inout=INOUT,
+            vcus=placement_set
+        )
+        async def task_func():
+            if config.verbose:
+                print(f"+{task_name} Running", flush=True)
 
-                elapsed = synthetic_kernel(runtime_info, config=config)
+            elapsed = synthetic_kernel(runtime_info, config=config)
 
-                if config.verbose:
-                    print(f"-{task_name} Finished: {elapsed} seconds", flush=True)
+            if config.verbose:
+                print(f"-{task_name} Finished: {elapsed} seconds", flush=True)
 
-        else:
-
-            @spawn(
-                T[task_idx],
-                dependencies=dependencies,
-                placement=cpu,
-                input=IN,
-                inout=INOUT,
-                vcus=placement_set,
-            )
-            async def task_func():
-                if config.verbose:
-                    print(f"+{task_name} Running", flush=True)
-
-                elapsed = synthetic_kernel(runtime_info, config=config)
-
-                if config.verbose:
-                    print(f"-{task_name} Finished: {elapsed} seconds", flush=True)
 
     except Exception as e:
         print(f"Failed creating Task {task_name}: {e}", flush=True)
