@@ -34,7 +34,7 @@ class Time:
     unit: str = "us"
     display_unit: str = "us"
 
-    def scale_between(, target_unit: str) -> int | Fraction | Decimal:
+    def scale_between(self, target_unit: str) -> int | Fraction | Decimal:
         if target_unit not in time_units:
             raise ValueError(f"Invalid time unit: {target_unit}")
         if self.unit not in time_units:
