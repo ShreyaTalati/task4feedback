@@ -16,7 +16,7 @@ import numpy as np
 NamedDevice = Device | SimulatedDevice
 
 
-@dataclass(slots=True)
+@dataclass()
 class ResourcePool:
     devices: InitVar[Sequence[SimulatedDevice]]
     devicemap: Dict[Device, SimulatedDevice] = field(init=False)

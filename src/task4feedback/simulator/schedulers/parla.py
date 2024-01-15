@@ -174,7 +174,7 @@ def complete_task(task: SimulatedTask, scheduler_state: SystemState) -> bool:
 
 
 @SchedulerOptions.register_scheduler("parla")
-@dataclass(slots=True)
+@dataclass()
 class ParlaArchitecture(SchedulerArchitecture):
     topology: InitVar[SimulatedTopology]
 

@@ -19,7 +19,7 @@ from .schedulers import *
 from rich import print
 
 
-@dataclass(slots=True)
+@dataclass()
 class SimulatedScheduler:
     topology: InitVar[SimulatedTopology]
     scheduler_type: InitVar[str] = "parla"

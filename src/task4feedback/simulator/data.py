@@ -70,7 +70,7 @@ TaskStateToUse[TaskState.LAUNCHED] = DataUses.USED
 NonEvictableUses = [DataUses.RESERVED, DataUses.MOVING, DataUses.USED]
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataUse:
     tasks: Dict[DataUses, Set[TaskID]] = field(default_factory=dict)
     counters: Dict[DataUses, int] = field(default_factory=dict)
@@ -104,7 +104,7 @@ class DataUse:
         yield "tasks", self.tasks
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataStatus:
     devices: InitVar[Sequence[Device]]
     device2state: Dict[TaskState, Dict[Device, DataState]] = field(default_factory=dict)
@@ -319,7 +319,7 @@ class DataStatus:
         yield "LAUNCHED", self.device2state[TaskState.LAUNCHED]
 
 
-@dataclass(slots=True)
+@dataclass()
 class SimulatedData:
     system_devices: InitVar[Sequence[Device]]
     info: DataInfo

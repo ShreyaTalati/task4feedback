@@ -10,7 +10,7 @@ from fractions import Fraction
 NamedDevice = Device | SimulatedDevice
 
 
-@dataclass(slots=True)
+@dataclass()
 class ConnectionPool:
     host: SimulatedDevice
     devices: InitVar[Sequence[Device]]
@@ -217,7 +217,7 @@ class ConnectionPool:
         return self.__str__()
 
 
-@dataclass(slots=True)
+@dataclass()
 class SimulatedTopology:
     devices: List[SimulatedDevice]
     name: str = "SimulatedTopology"

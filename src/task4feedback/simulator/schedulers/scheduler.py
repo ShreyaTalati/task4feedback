@@ -17,7 +17,7 @@ from collections import defaultdict as DefaultDict
 from rich import print
 
 
-@dataclass(slots=True)
+@dataclass()
 class ObjectRegistry:
     # Object References (Hashable Name -> Object)
     devicemap: Dict[Device, SimulatedDevice] = field(default_factory=dict)
@@ -88,7 +88,7 @@ class ObjectRegistry:
         return device
 
 
-@dataclass(slots=True)
+@dataclass()
 class SystemState:
     topology: SimulatedTopology
     data_pool: DataPool = field(init=False)
@@ -152,7 +152,7 @@ class SystemState:
         raise NotImplementedError()
 
 
-@dataclass(slots=True)
+@dataclass()
 class SchedulerArchitecture:
     topology: InitVar[SimulatedTopology]
     completed_tasks: List[TaskID] = field(default_factory=list)

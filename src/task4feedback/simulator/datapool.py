@@ -6,14 +6,14 @@ from dataclasses import dataclass, field, InitVar
 from typing import Dict, List, Set, Tuple, Union, Self
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataNode:
     data: Optional[DataInfo] = None
     next: Optional[DataNode] = None
     prev: Optional[DataNode] = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataNodeList:
     head: DataNode = field(default_factory=DataNode)
     tail: DataNode = field(default_factory=DataNode)
@@ -63,7 +63,7 @@ class DataNodeList:
         return self.__str__()
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvictionPool:
     evictable_size: int = 0
 
@@ -80,7 +80,7 @@ class EvictionPool:
         raise NotImplementedError
 
 
-@dataclass(slots=True)
+@dataclass()
 class LRUEvictionPool(EvictionPool):
     datalist: DataNodeList = field(default_factory=DataNodeList)
 
@@ -107,7 +107,7 @@ class LRUEvictionPool(EvictionPool):
         return data.id
 
 
-@dataclass(slots=True)
+@dataclass()
 class DeviceDataPool:
     states2data: Dict[DataState, Set[DataID]] = field(default_factory=dict)
     evictable: EvictionPool = field(default_factory=LRUEvictionPool)
@@ -154,7 +154,7 @@ class DeviceDataPool:
         self.evictable.remove(data)
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataPool:
     devices: InitVar[Sequence[SimulatedDevice]]
     devices2pools: Dict[Device, DeviceDataPool] = field(default_factory=dict)

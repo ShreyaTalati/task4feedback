@@ -17,7 +17,7 @@ import numpy as np
 #########################################
 
 time_units: List[str] = ["ns", "us", "ms", "s", "m", "h", "d"]
-time_scale: List[int | Fraction] = [
+time_scale: List[Union[int, Fraction]] = [
     1_000_000_000,
     1_000_000,
     1_000,
@@ -28,13 +28,13 @@ time_scale: List[int | Fraction] = [
 ]
 
 
-@dataclass(slots=True)
+@dataclass()
 class Time:
     duration: int = 0
     unit: str = "us"
     display_unit: str = "us"
 
-    def scale_between(self, target_unit: str) -> int | Fraction | Decimal:
+    def scale_between(self, target_unit: str) -> Union[int, Fraction, Decimal]:
         if target_unit not in time_units:
             raise ValueError(f"Invalid time unit: {target_unit}")
         if self.unit not in time_units:
@@ -45,11 +45,11 @@ class Time:
 
         return Fraction(time_scale[target_idx], time_scale[current_idx])
 
-    def scale_to(self, target_unit: str) -> int | Fraction | Decimal:
+    def scale_to(self, target_unit: str) -> Union[int, Fraction, Decimal]:
         value = self.scale_between(target_unit) * self.duration
         return value
 
-    def print(self, unit: str | None = None) -> str:
+    def print(self, unit: Union[str, None] = None) -> str:
         value = self.scale_to(unit or self.display_unit)
         value_str = str(float(value)) if isinstance(value, Fraction) else str(value)
         return f"{value_str}{unit or self.display_unit}"
@@ -118,7 +118,9 @@ class Architecture(IntEnum):
         return self.name
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(
+    frozen=True,
+)
 class Device:
     """
     Identifies a device in a synthetic task graph.
@@ -151,11 +153,11 @@ class AccessType(IntEnum):
     READ_WRITE = 2
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataID:
     idx: Tuple[int, ...] = (0,)
 
-    def __init__(self, idx: Tuple[int, ...] | int):
+    def __init__(self, idx: Union[Tuple[int, ...], int]):
         if isinstance(idx, int):
             idx = (idx,)
         self.idx = idx
@@ -176,7 +178,7 @@ class DataID:
         return self.idx < other.idx
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataInfo:
     """
     The collection of information for a data object in a synthetic task graph.
@@ -190,13 +192,13 @@ class DataInfo:
 
     id: DataID
     size: int
-    location: Device | Tuple[Device, ...] | None
+    location: Union[Device, Tuple[Device, ...], None]
 
     def __init__(
         self,
-        id: DataID | Tuple[int, ...] | int,
+        id: Union[DataID, Tuple[int, ...], int],
         size: int,
-        location: Device | Tuple[Device, ...] | None,
+        location: Union[Device, Tuple[Device, ...], None],
     ):
         if not isinstance(id, DataID):
             id = DataID(id)
@@ -206,7 +208,7 @@ class DataInfo:
         self.location = location
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataAccess:
     """
     The collection of information for a data access in a synthetic task graph.
@@ -218,13 +220,13 @@ class DataAccess:
     """
 
     id: DataID
-    pattern: slice | list[int] | int | None = None
+    pattern: Union[slice, list[int], int, None] = None
     device: int = 0
 
     def __init__(
         self,
-        id: DataID | Tuple[int, ...] | int,
-        pattern: slice | list[int] | int | None = None,
+        id: Union[DataID, Tuple[int, ...], int],
+        pattern: Union[slice, list[int], int, None] = None,
         device: int = 0,
     ):
         if not isinstance(id, DataID):
@@ -235,7 +237,7 @@ class DataAccess:
         self.device = device
 
 
-@dataclass(slots=True)
+@dataclass()
 class TaskDataInfo:
     """
     The data dependencies for a task in a synthetic task graph.
@@ -374,7 +376,9 @@ class ResourceType(IntEnum):
     ALL = 3
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(
+    frozen=True,
+)
 class TaskID:
     """
     The identifier for a task in a synthetic task graph.
@@ -398,7 +402,7 @@ class TaskID:
         return hash((self.taskspace, self.task_idx, self.instance))
 
 
-@dataclass(slots=True)
+@dataclass()
 class TaskRuntimeInfo:
     """
     The collection of important runtime information / constraints for a task in a synthetic task graph.
@@ -411,13 +415,13 @@ class TaskRuntimeInfo:
     memory: int = 0
 
 
-@dataclass(slots=True)
+@dataclass()
 class TaskPlacementInfo:
-    locations: list[Device | Tuple[Device, ...]] = field(default_factory=list)
+    locations: List[Union[Device, Tuple[Device, ...]]] = field(default_factory=list)
     # info: Dict[NDevices, Dict[LocalIdx, Dict[Device, TaskRuntimeInfo]]]
     info: Dict[
-        Device | Tuple[Device, ...],
-        TaskRuntimeInfo | Dict[Device, TaskRuntimeInfo] | List[TaskRuntimeInfo],
+        Union[Device, Tuple[Device, ...]],
+        Union[TaskRuntimeInfo, Dict[Device, TaskRuntimeInfo], List[TaskRuntimeInfo]],
     ] = field(default_factory=dict)
     lookup: defaultdict[int, defaultdict[int, Dict[Device, TaskRuntimeInfo]]] = field(
         default_factory=lambda: defaultdict(lambda: defaultdict(dict))
@@ -425,21 +429,21 @@ class TaskPlacementInfo:
 
     def add(
         self,
-        placement: Device | Tuple[Device, ...],
-        runtime_info: TaskRuntimeInfo
-        | Dict[Device, TaskRuntimeInfo]
-        | List[TaskRuntimeInfo],
+        placement: Union[Device, Tuple[Device, ...]],
+        runtime_info: Union[
+            TaskRuntimeInfo, Dict[Device, TaskRuntimeInfo], List[TaskRuntimeInfo]
+        ],
     ):
         if isinstance(placement, Device):
             placement = (placement,)
 
-        if isinstance(placement, tuple) and isinstance(runtime_info, TaskRuntimeInfo):
+        if isinstance(placement, Tuple) and isinstance(runtime_info, TaskRuntimeInfo):
             for localidx, device in enumerate(placement):
                 self.lookup[len(placement)][localidx][device] = runtime_info
-        elif isinstance(placement, tuple) and isinstance(runtime_info, dict):
+        elif isinstance(placement, Tuple) and isinstance(runtime_info, Dict):
             for localidx, device in enumerate(placement):
                 self.lookup[len(placement)][localidx][device] = runtime_info[device]
-        elif isinstance(placement, tuple) and isinstance(runtime_info, list):
+        elif isinstance(placement, Tuple) and isinstance(runtime_info, List):
             if len(placement) != len(runtime_info):
                 raise ValueError(
                     f"Invalid placement and runtime_info. {placement} and {runtime_info} must be the same length."
@@ -457,7 +461,7 @@ class TaskPlacementInfo:
 
         return self
 
-    def remove(self, placement: Device | Tuple[Device, ...]):
+    def remove(self, placement: Union[Device, Tuple[Device, ...]]):
         if isinstance(placement, Device):
             placement = (placement,)
 
@@ -521,7 +525,7 @@ class TaskPlacementInfo:
         return None
 
     def __getitem__(
-        self, placement: Device | Tuple[Device, ...]
+        self, placement: Union[Device, Tuple[Device, ...]]
     ) -> List[TaskRuntimeInfo]:
         if placement is None:
             raise KeyError("Placement query cannot be None.")
@@ -529,7 +533,7 @@ class TaskPlacementInfo:
         if isinstance(placement, Device):
             placement = (placement,)
 
-        if isinstance(placement, tuple):
+        if isinstance(placement, Tuple):
             runtime_info_list = []
             for idx, device in enumerate(placement):
                 runtime_info = self._get_any(device, self.lookup[len(placement)][idx])
@@ -544,14 +548,14 @@ class TaskPlacementInfo:
 
         return runtime_info_list
 
-    def __contains__(self, placement: Device | Tuple[Device, ...]) -> bool:
+    def __contains__(self, placement: Union[Device, Tuple[Device, ...]]) -> bool:
         if placement is None:
             return False
 
         if isinstance(placement, Device):
             placement = (placement,)
 
-        if isinstance(placement, tuple):
+        if isinstance(placement, Tuple):
             for idx, device in enumerate(placement):
                 runtime_info = self._get_any(device, self.lookup[len(placement)][idx])
                 if runtime_info is None:
@@ -564,7 +568,7 @@ class TaskPlacementInfo:
         return True
 
 
-@dataclass(slots=True)
+@dataclass()
 class TaskInfo:
     """
     The collection of important information for a task in a synthetic task graph.
@@ -574,7 +578,7 @@ class TaskInfo:
     runtime: TaskPlacementInfo
     dependencies: list[TaskID]
     data_dependencies: TaskDataInfo
-    mapping: Device | Tuple[Device, ...] | None = None
+    mapping: Union[Device, Tuple[Device, ...], None] = None
     order: int = 0
 
 
@@ -586,7 +590,7 @@ TaskMap = Dict[TaskID, TaskInfo]
 #########################################
 
 
-@dataclass(slots=True)
+@dataclass()
 class TaskTime:
     """
     The parsed timing information from a task from an execution log.
@@ -598,7 +602,7 @@ class TaskTime:
     duration: float
 
 
-@dataclass(slots=True)
+@dataclass()
 class TimeSample:
     """
     A collection of timing information.
@@ -637,7 +641,7 @@ class DataInitType(IntEnum):
     OVERLAPPED_DATA = 2
 
 
-@dataclass(slots=True)
+@dataclass()
 class DataGraphConfig:
     """
     Information about initial data placement for a synthetic task graph.
@@ -646,13 +650,13 @@ class DataGraphConfig:
     name: str = "DefaultDataPattern"
     data_size: int = 2**16  # 64 KiB
     initial_placement: Optional[
-        Callable[[int | Tuple[int, ...]], Device | Tuple[Device, ...]]
+        Callable[[Union[int, Tuple[int, ...]]], Union[Device, Tuple[Device, ...]]]
     ] = None
-    initial_sizes: Optional[Callable[[int | Tuple[int, ...]], int]] = None
+    initial_sizes: Optional[Callable[[Union[int, Tuple[int, ...]]], int]] = None
     edges: Optional[Callable[[TaskID], TaskDataInfo]] = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class GraphConfig:
     """
     Configures information about generating the synthetic task graph.
@@ -668,9 +672,9 @@ class GraphConfig:
     fixed_placement: bool = False
     fixed_architecture: Architecture = Architecture.GPU
     n_devices: int = 4
-    data_config: None | DataGraphConfig = None
+    data_config: Union[None, DataGraphConfig] = None
     mapping: Callable[
-        [int | Tuple[int, ...]], Device | Tuple[Device, ...]
+        [Union[int, Tuple[int, ...]]], Union[Device, Tuple[Device, ...]]
     ] = lambda x: Device(Architecture.CPU, 0)
     task_config: Callable[
         [TaskID], TaskPlacementInfo
@@ -687,7 +691,9 @@ class GraphConfig:
         return self.data_config.initial_placement
 
     @initial_data_placement.setter
-    def initial_data_placement(self, value: Callable[[int | Tuple[int, ...]], Device]):
+    def initial_data_placement(
+        self, value: Callable[[Union[int, Tuple[int, ...]]], Device]
+    ):
         self.data_config.initial_placement = value
 
     @property
@@ -695,7 +701,7 @@ class GraphConfig:
         return self.data_config.initial_sizes
 
     @initial_data_sizes.setter
-    def initial_data_sizes(self, value: Callable[[int | Tuple[int, ...]], int]):
+    def initial_data_sizes(self, value: Callable[[Union[int, Tuple[int, ...]]], int]):
         self.data_config.initial_sizes = value
 
     @property
@@ -712,7 +718,7 @@ class GraphConfig:
 #########################################
 
 
-@dataclass(slots=True)
+@dataclass()
 class NoDataGraphConfig(DataGraphConfig):
     """
     Defines a data graph pattern that uses no data
@@ -724,7 +730,7 @@ class NoDataGraphConfig(DataGraphConfig):
         self.edges = lambda x: TaskDataInfo()
 
 
-@dataclass(slots=True)
+@dataclass()
 class ReusedDataGraphConfig(DataGraphConfig):
     """
     Defines a data graph pattern where the data is reused across tasks.
@@ -754,7 +760,7 @@ class ReusedDataGraphConfig(DataGraphConfig):
         self.edges = edges
 
 
-@dataclass(slots=True)
+@dataclass()
 class IndependentDataGraphConfig(DataGraphConfig):
     """
     Defines a data graph pattern where the data is independent across tasks.
@@ -781,13 +787,13 @@ class IndependentDataGraphConfig(DataGraphConfig):
         self.edges = edges
 
 
-@dataclass(slots=True)
+@dataclass()
 class ChainDataGraphConfig(DataGraphConfig):
     """
     Defines a data graph pattern where data in the same dependent chain is shared between tasks.
     """
 
-    chain_index: slice | int = 1
+    chain_index: Union[slice, int] = 1
     n_devices: int = 1
 
     def __post_init__(self):
@@ -804,7 +810,7 @@ class ChainDataGraphConfig(DataGraphConfig):
         self.edges = edges
 
 
-@dataclass(slots=True)
+@dataclass()
 class CholeskyDataGraphConfig(DataGraphConfig):
     """
     Defines a data graph pattern for a Block Cholesky factorization.
@@ -843,7 +849,7 @@ class CholeskyDataGraphConfig(DataGraphConfig):
         self.edges = edges
 
 
-@dataclass(slots=True)
+@dataclass()
 class ReductionDataGraphConfig(DataGraphConfig):
     """
     Defines a data graph pattern for a reduction.
@@ -883,7 +889,7 @@ class ReductionDataGraphConfig(DataGraphConfig):
         self.edges = edges
 
 
-@dataclass(slots=True)
+@dataclass()
 class SweepDataGraphConfig(DataGraphConfig):
     """
     Defines a data graph pattern for a sweep graph.
@@ -925,7 +931,7 @@ class SweepDataGraphConfig(DataGraphConfig):
         self.edges = edges
 
 
-@dataclass(slots=True)
+@dataclass()
 class StencilDataGraphConfig(DataGraphConfig):
     """
     Defines a data graph pattern for a sweep graph.
@@ -987,7 +993,7 @@ class StencilDataGraphConfig(DataGraphConfig):
         self.edges = edges
 
 
-@dataclass(slots=True)
+@dataclass()
 class IndependentConfig(GraphConfig):
     """
     Used to configure the generation of an independent synthetic task graph.
@@ -1006,7 +1012,7 @@ class IndependentConfig(GraphConfig):
             )
 
 
-@dataclass(slots=True)
+@dataclass()
 class SerialConfig(GraphConfig):
     """
     Used to configure the generation of a serial synthetic task graph.
@@ -1036,7 +1042,7 @@ class SerialConfig(GraphConfig):
             )
 
 
-@dataclass(slots=True)
+@dataclass()
 class CholeskyConfig(GraphConfig):
     """
     Used to configure the generation of a synthetic Cholesky task graph
@@ -1053,7 +1059,7 @@ class CholeskyConfig(GraphConfig):
             )
 
 
-@dataclass(slots=True)
+@dataclass()
 class ReductionConfig(GraphConfig):
     """
     Used to configure the generation of a reduction synthetic task graph.
@@ -1081,7 +1087,7 @@ class ReductionConfig(GraphConfig):
             )
 
 
-@dataclass(slots=True)
+@dataclass()
 class ScatterReductionConfig(GraphConfig):
     """
     Used to configure the generation of a scatter-reduction task graph.
@@ -1091,7 +1097,7 @@ class ScatterReductionConfig(GraphConfig):
     branch_factor: int = 2
 
 
-@dataclass(slots=True)
+@dataclass()
 class SweepConfig(GraphConfig):
     """
     Used to configure the generation of a sweep synthetic task graph.
@@ -1110,7 +1116,7 @@ class SweepConfig(GraphConfig):
             )
 
 
-@dataclass(slots=True)
+@dataclass()
 class StencilConfig(GraphConfig):
     """
     Used to configure the generation of a stencil task graph.
@@ -1130,7 +1136,7 @@ class StencilConfig(GraphConfig):
             )
 
 
-@dataclass(slots=True)
+@dataclass()
 class ButterflyConfig(GraphConfig):
     """
     Used to configure the generation of a butterfly synthetic task graph. (FFT Pattern)
@@ -1148,7 +1154,7 @@ class ButterflyConfig(GraphConfig):
             )
 
 
-@dataclass(slots=True)
+@dataclass()
 class MapReduceConfig(GraphConfig):
     """
     Used to configure the generation of a map-reduce synthetic task graph.
@@ -1166,7 +1172,7 @@ class MapReduceConfig(GraphConfig):
             )
 
 
-@dataclass(slots=True)
+@dataclass()
 class FullyConnectedConfig(GraphConfig):
     """
     Used to configure the generation of a fully connected synthetic task graph.
@@ -1189,7 +1195,7 @@ class FullyConnectedConfig(GraphConfig):
 #########################################
 
 
-@dataclass(slots=True)
+@dataclass()
 class RunConfig:
     """
     Configuration object for executing a synthetic task graph.
@@ -1216,11 +1222,11 @@ class RunConfig:
     inner_sync: bool = False
     outer_sync: bool = False
     verbose: bool = False
-    device_fraction: Optional[float | Fraction] = None
+    device_fraction: Optional[Union[float, Fraction]] = None
     data_scale: float = 1.0
     threads: int = 1
     task_time: Optional[int] = None
-    gil_fraction: Optional[float | Fraction] = None
+    gil_fraction: Optional[Union[float, Fraction]] = None
     gil_accesses: Optional[int] = None
     movement_type: int = MovementType.NO_MOVEMENT
     logfile: str = "testing.blog"
@@ -1234,7 +1240,7 @@ class RunConfig:
 
 
 def apply_mapping(
-    mapping: Dict[TaskID, Device | Tuple[Device, ...]], tasks: TaskMap
+    mapping: Dict[TaskID, Union[Device, Tuple[Device, ...]]], tasks: TaskMap
 ) -> TaskMap:
     """
     Apply the mapping to the tasks
@@ -1255,7 +1261,7 @@ def apply_order(order: Dict[TaskID, int], tasks: TaskMap) -> TaskMap:
     return tasks
 
 
-def extract_mapping(tasks: TaskMap) -> Dict[TaskID, Device | Tuple[Device, ...]]:
+def extract_mapping(tasks: TaskMap) -> Dict[TaskID, Union[Device, Tuple[Device, ...]]]:
     """
     Extract the mapping from the tasks
     """
@@ -1295,7 +1301,7 @@ def decimal_from_fraction(frac):
     return frac.numerator / Decimal(frac.denominator)
 
 
-def numeric_from_str(string: str) -> int | Fraction:
+def numeric_from_str(string: str) -> Union[int, Fraction]:
     """
     Extracts string as decimal or int
     """
@@ -1305,7 +1311,7 @@ def numeric_from_str(string: str) -> int | Fraction:
         return int(string)
 
 
-def numeric_to_str(obj: Fraction | Decimal):
+def numeric_to_str(obj: Union[Fraction, Decimal]):
     """
     Convert other numeric types to strings of the form "0.00"
     """
@@ -1376,7 +1382,7 @@ def make_task_runtime_from_dict(task_runtime: Dict) -> TaskRuntimeInfo:
     )
 
 
-def device_from_string(device_str: str) -> Device | Tuple[Device, ...] | None:
+def device_from_string(device_str: str) -> Union[Device, Tuple[Device, ...], None]:
     """
     Convert a device string (or string of a device tuple) to a device set
     """

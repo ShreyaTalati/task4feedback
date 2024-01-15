@@ -2,7 +2,7 @@ from ..types import TaskID, TaskInfo, TaskState, Optional
 from dataclasses import dataclass, field
 
 
-@dataclass(slots=True)
+@dataclass()
 class Event:
     func: str
     time: Optional[float] = None
@@ -17,31 +17,31 @@ class Event:
         return hash((self.func, self.time))
 
 
-@dataclass(slots=True)
+@dataclass()
 class PhaseEvent(Event):
     max_tasks: int | None = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class TaskEvent(Event):
     task: TaskID = field(default_factory=TaskID)
 
 
-@dataclass(slots=True)
+@dataclass()
 class Mapper(PhaseEvent):
     func: str = "mapper"
 
 
-@dataclass(slots=True)
+@dataclass()
 class Reserver(PhaseEvent):
     func: str = "reserver"
 
 
-@dataclass(slots=True)
+@dataclass()
 class Launcher(PhaseEvent):
     func: str = "launcher"
 
 
-@dataclass(slots=True)
+@dataclass()
 class TaskCompleted(TaskEvent):
     func: str = "complete_task"

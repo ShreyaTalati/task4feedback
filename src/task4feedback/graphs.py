@@ -33,7 +33,7 @@ graph_generators = []
 
 def get_mapping(
     config: GraphConfig, task_idx: Tuple[int, ...]
-) -> Device | Tuple[Device, ...] | None:
+) -> Union[Device, Tuple[Device, ...], None]:
     if config.fixed_placement:
         mapping_lambda = config.mapping
         assert mapping_lambda is not None

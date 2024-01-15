@@ -14,7 +14,7 @@ from .device import ResourceSet
 from .datapool import DataPool
 
 
-@dataclass(slots=True)
+@dataclass()
 class TaskTimes:
     duration: Time = field(default_factory=Time)
     state_times: Dict[TaskState, Time] = field(default_factory=dict)
@@ -42,7 +42,7 @@ class TaskTimes:
             self.status_times[state] = time
 
 
-@dataclass(slots=True, init=False)
+@dataclass(, init=False)
 class TaskCounters:
     remaining_deps_states: Dict[TaskState, int] = field(default_factory=dict)
     remaining_deps_status: Dict[TaskStatus, int] = field(default_factory=dict)
@@ -83,7 +83,7 @@ class TaskCounters:
         self.remaining_deps_status[new_status] -= 1
 
 
-@dataclass(slots=True)
+@dataclass()
 class SimulatedTask:
     name: TaskID
     info: TaskInfo
@@ -242,7 +242,7 @@ class SimulatedTask:
         raise NotImplementedError
 
 
-@dataclass(slots=True)
+@dataclass()
 class SimulatedComputeTask(SimulatedTask):
     datatasks: List[Self] = field(default_factory=list)
     type: TaskType = TaskType.COMPUTE
@@ -269,7 +269,7 @@ class SimulatedComputeTask(SimulatedTask):
             self.resources.append(ResourceSet(vcus=vcus, memory=memory, copy=0))
 
 
-@dataclass(slots=True)
+@dataclass()
 class SimulatedDataTask(SimulatedTask):
     type: TaskType = TaskType.DATA
 

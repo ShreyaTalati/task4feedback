@@ -86,7 +86,7 @@ def write_tasks_to_yaml(tasks: Dict[TaskID, TaskInfo], basename: str = "graph"):
 
 
 def write_task_mapping_to_yaml(
-    task_mapping: Dict[TaskID, Device | Tuple[Device]], basename: str = "graph"
+    task_mapping: Dict[TaskID, Union[Device, Tuple[Device]]], basename: str = "graph"
 ):
     """
     Write the task -> device mapping to a yaml file
@@ -122,7 +122,7 @@ def write_task_order_to_yaml(task_order: Dict[TaskID, int], basename: str = "gra
 def write_to_yaml(
     tasks: Optional[Dict[TaskID, TaskInfo]] = None,
     data: Optional[Dict[int, DataInfo]] = None,
-    mapping: Optional[Dict[TaskID, Device | Tuple[Device]]] = None,
+    mapping: Optional[Dict[TaskID, Union[Device, Tuple[Device]]]] = None,
     order: Optional[Dict[TaskID, int]] = None,
     basename: str = "graph",
 ):
@@ -181,7 +181,9 @@ def read_tasks_from_dict(task_dict: Dict) -> TaskInfo:
     )
 
 
-def read_mapping_from_dict(mapping_dict: Dict) -> Tuple[TaskID, Device | Tuple[Device]]:
+def read_mapping_from_dict(
+    mapping_dict: Dict,
+) -> Tuple[TaskID, Union[Device, Tuple[Device]]]:
     """
     Read a task -> device mapping from a dictionary
     """
@@ -248,7 +250,7 @@ def read_tasks_from_yaml(basename: str = "graph") -> Dict[TaskID, TaskInfo]:
 
 def read_task_mapping_from_yaml(
     basename: str = "graph",
-) -> Dict[TaskID, Device | Tuple[Device]]:
+) -> Dict[TaskID, Union[Device, Tuple[Device]]]:
     """
     Read the task -> device mapping from a yaml file
     """
@@ -329,11 +331,7 @@ def write_to_pgraph(
         comma = ", ".join([f"{getattr(info, slot)}" for slot in info.__slots__])
         return comma
 
-    def unpack_runtime(
-        runtime: TaskPlacementInfo
-        | TaskRuntimeInfo
-        | Dict[Device | Tuple[Device, ...], TaskRuntimeInfo]
-    ):
+    def unpack_runtime(runtime):
         print("Unpacking runtime: ", type(runtime))
         if isinstance(runtime, TaskPlacementInfo):
             return unpack_runtime(runtime.info)

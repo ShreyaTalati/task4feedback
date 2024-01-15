@@ -10,7 +10,7 @@ from collections import defaultdict as DefaultDict
 Numeric = int | float | Fraction | Decimal
 
 
-@dataclass(slots=True, init=False)
+@dataclass(, init=False)
 class ResourceSet:
     store: DefaultDict[ResourceType, Numeric] = field(
         default_factory=lambda: DefaultDict(int)
@@ -95,7 +95,7 @@ class ResourceSet:
         return True
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass()
 class SimulatedDevice:
     name: Device
     resources: ResourceSet

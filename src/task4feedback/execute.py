@@ -27,8 +27,8 @@ if use_old_parla:
 
     from parla import Parla
 
-    #from sleep.core import bsleep as sleep_nogil
-    #from sleep.core import sleep_with_gil as sleep_gil
+    # from sleep.core import bsleep as sleep_nogil
+    # from sleep.core import sleep_with_gil as sleep_gil
     from doozer.cpu import sleep as sleep_nogil
     from doozer.cpu import sleep_with_gil as sleep_gil
 
@@ -139,7 +139,8 @@ def free_sleep(duration: float, config: RunConfig = None):
 def lock_sleep(duration: float, config: RunConfig = None):
     sleep_gil(duration)
 
-def write_data_tag(block: "np.ndarray | cupy.ndarray", id: DataID):
+
+def write_data_tag(block, id: DataID):
     n, d = block.shape
     n_idx = len(id.idx)
 
@@ -168,9 +169,7 @@ def write_data_tag(block: "np.ndarray | cupy.ndarray", id: DataID):
             block[generation_idx] = -1
 
 
-def generate_array(
-    data_info: DataInfo, data_scale: int = 1
-) -> Dict[Device, "np.ndarray | cupy.ndarray"]:
+def generate_array(data_info: DataInfo, data_scale: int = 1) -> Dict:
     data_id = data_info.id
     data_location = data_info.location
     data_size = data_info.size
@@ -202,10 +201,8 @@ def generate_array(
     return location_to_block
 
 
-def generate_parray(
-    location_to_block: Dict[Device, "np.ndarray | cupy.ndarray"]
-) -> PArray:
-    parray: PArray | None = None
+def generate_parray(location_to_block: Dict) -> PArray:
+    parray = None
     for i, (location, block) in enumerate(location_to_block.items()):
         if i == 0:
             parray = asarray(block)
@@ -233,7 +230,7 @@ def generate_data(
     data_config: Dict[DataID, DataInfo],
     data_scale: int = 1,
     movement_type: MovementType = MovementType.NO_MOVEMENT,
-) -> Dict[DataID, PArray | Dict[Device, "np.ndarray | cupy.ndarray"]]:
+) -> Dict:
     data_blocks = dict()
 
     if movement_type == MovementType.NO_MOVEMENT:
@@ -370,9 +367,7 @@ def build_parla_device(mapping: Device, runtime_info: TaskRuntimeInfo):
         return arch(mapping.device_id), device_memory, device_fraction
 
 
-def build_parla_device_tuple(
-    mapping: Device | Tuple[Device, ...], runtime_info: TaskPlacementInfo
-):
+def build_parla_device_tuple(mapping, runtime_info: TaskPlacementInfo):
     if isinstance(mapping, Device):
         mapping = (mapping,)
 
@@ -401,9 +396,7 @@ def build_parla_device_tuple(
     return tuple(device_list)
 
 
-def build_parla_placement(
-    mapping: Device | Tuple[Device, ...] | None, task_placment_info: TaskPlacementInfo
-):
+def build_parla_placement(mapping, task_placment_info: TaskPlacementInfo):
     if mapping is None:
         mapping_list = task_placment_info.locations
         mapping_list = [
@@ -419,7 +412,7 @@ def parse_task_info(
     task: TaskInfo,
     taskspaces: Dict[str, TaskSpace],
     config: RunConfig,
-    data_dict: Dict[DataID, "np.ndarray | cupy.ndarray | PArray"] | None = None,
+    data_dict: Dict,
 ):
     """
     Parse a tasks configuration into Parla objects to launch the task.
@@ -489,14 +482,13 @@ def create_task(task_name, task_info, data_info, runtime_info, config: RunConfig
                 flush=True,
             )
 
-
         @spawn(
             T[task_idx],
             dependencies=dependencies,
             placement=cpu,
             input=IN,
             inout=INOUT,
-            vcus=placement_set
+            vcus=placement_set,
         )
         async def task_func():
             if config.verbose:
@@ -506,7 +498,6 @@ def create_task(task_name, task_info, data_info, runtime_info, config: RunConfig
 
             if config.verbose:
                 print(f"-{task_name} Finished: {elapsed} seconds", flush=True)
-
 
     except Exception as e:
         print(f"Failed creating Task {task_name}: {e}", flush=True)

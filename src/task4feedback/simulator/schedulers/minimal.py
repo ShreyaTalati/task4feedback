@@ -84,7 +84,7 @@ def check_launched_resources(task: SimulatedTask, scheduler_state: SystemState) 
     return can_fit
 
 
-@dataclass(slots=True)
+@dataclass()
 class MinimalState(SystemState):
     def check_resources(self, taskid: TaskID, state: TaskState) -> bool:
         # Check that the resources are available
@@ -272,7 +272,7 @@ def complete_task(task: SimulatedTask, scheduler_state: SystemState) -> bool:
 
 
 @SchedulerOptions.register_scheduler("minimal")
-@dataclass(slots=True)
+@dataclass()
 class MinimalArchitecture(SchedulerArchitecture):
     topology: InitVar[SimulatedTopology]
 
