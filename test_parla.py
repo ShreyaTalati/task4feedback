@@ -113,19 +113,19 @@ def test():
     # )
     # config = ReductionConfig(levels=args.steps, branch_factor=2, data_config=data_config, task_config=custom_tasks)
     config = StencilConfig(
-         dimensions=1,
-         width=args.width,
-         steps=args.steps,
-         data_config=data_config,
-         task_config=custom_tasks,
+        dimensions=1,
+        width=args.width,
+        steps=args.steps,
+        data_config=data_config,
+        task_config=custom_tasks,
     )
-    #config = SweepConfig(
+    # config = SweepConfig(
     #    width=args.width,
     #    steps=args.steps,
     #    dimensions=1,
     #    data_config=data_config,
     #    task_config=custom_tasks,
-    #)
+    # )
     # config = SerialConfig(
     #     chains=1, steps=args.steps, data_config=data_config, task_config=custom_tasks
     # )
@@ -143,7 +143,37 @@ def test():
     start_t = time.perf_counter()
     timing = run(tasks, data, run_config=run_config)
     end_t = time.perf_counter()
-    print("Internal time:", timing)
+    elapsed_t = timing.median
+
+    print(
+        ", ".join(
+            [
+                str("workers"),
+                str("n"),
+                str("width"),
+                str("task_time"),
+                str("accesses"),
+                str("frac"),
+                str("total_time"),
+            ]
+        ),
+        flush=True,
+    )
+
+    print(
+        ", ".join(
+            [
+                str(args.workers),
+                str(args.steps),
+                str(args.width),
+                str(args.t),
+                str(args.accesses),
+                str(args.frac),
+                str(elapsed_t),
+            ]
+        ),
+        flush=True,
+    )
 
 
 test()
