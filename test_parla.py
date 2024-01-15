@@ -1,10 +1,6 @@
 from rich import print
 
-from task4feedback.visualize import *
-
-from task4feedback.simulator.preprocess import *
-from task4feedback.simulator.simulator import *
-from task4feedback.simulator.topology import *
+# from task4feedback.visualize import *
 from task4feedback.graphs import *
 from task4feedback.load import *
 from task4feedback.execute import run
