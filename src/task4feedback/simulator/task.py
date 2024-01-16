@@ -42,7 +42,7 @@ class TaskTimes:
             self.status_times[state] = time
 
 
-@dataclass(, init=False)
+@dataclass(init=False)
 class TaskCounters:
     remaining_deps_states: Dict[TaskState, int] = field(default_factory=dict)
     remaining_deps_status: Dict[TaskStatus, int] = field(default_factory=dict)

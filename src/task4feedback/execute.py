@@ -29,8 +29,10 @@ if use_old_parla:
 
     # from sleep.core import bsleep as sleep_nogil
     # from sleep.core import sleep_with_gil as sleep_gil
-    from doozer.cpu import sleep as sleep_nogil
-    from doozer.cpu import sleep_with_gil as sleep_gil
+    # from doozer.cpu import sleep as sleep_nogil
+    # from doozer.cpu import sleep_with_gil as sleep_gil
+    sleep_nogil = lambda x: time.sleep(x / 10**6)
+    sleep_gil = lambda x: time.sleep(x / 10**6)
 
     from parla.tasks import TaskSpace, spawn
     from parla.cpu import cpu
