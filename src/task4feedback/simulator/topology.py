@@ -514,7 +514,7 @@ def generate_mesh_toplogy(
         H2D_BW = parse_size("7 GB")  # 7 GB/s
         D2H_BW = parse_size("7 GB")  # 7 GB/s
 
-        GPU_MEM = parse_size("2 KB")
+        GPU_MEM = parse_size("16 GB")
         CPU_MEM = parse_size("130 GB")
 
         GPU_COPY_ENGINES = 3

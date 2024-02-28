@@ -290,6 +290,7 @@ class DataTaskRecord(TaskRecord):
     data: Optional[DataID] = None
     data_size: Optional[int] = None
     reserve_time: Time = Time(0)
+    communication_energy: float = 0
 
 
 @dataclass(slots=True)
